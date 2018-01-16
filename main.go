@@ -60,8 +60,8 @@ func (s *LeftRightSubLists) TakeNextLeft() *SubListDefinition {
 
 	left := s.left + s.leftBlockIndex*s.blockSize
 	right := left + s.blockSize - 1 //Right is inclusive so -1
-	if right >= s.length {
-		right = s.left + s.length - 1
+	if right > s.right {
+		right = s.right
 	}
 	d := SubListDefinition{left, right}
 
@@ -85,8 +85,8 @@ func (s *LeftRightSubLists) TakeNextRight() *SubListDefinition {
 
 	left := s.left + s.rightBlockIndex*s.blockSize
 	right := left + s.blockSize - 1 //Right is inclusive so -1
-	if right >= s.length {
-		right = s.left + s.length - 1
+	if right >= s.right {
+		right = s.right
 	}
 	d := SubListDefinition{left, right}
 
@@ -121,9 +121,9 @@ func selectTopFaA(list []int, top int, blockSize int) int {
 		i := 0
 		j := 0
 		for leftBlock != nil && rightBlock != nil {
-			fmt.Printf("before partition L: %v, R: %v, pivot index of %v, list %v\n", left, right, pivotIndex, list)
+			//# fmt.Printf("before partition L: %v, R: %v, pivot index of %v, list %v\n", left, right, pivotIndex, list)
 			leftOrRight, index := neutralise(list, *leftBlock, i, *rightBlock, j, pivotValue)
-			fmt.Printf("after partition L: %v, R: %v, pivot index of %v, list %v\n", left, right, pivotIndex, list)
+			//# fmt.Printf("after partition L: %v, R: %v, pivot index of %v, list %v\n", left, right, pivotIndex, list)
 
 			if leftOrRight > 0 {
 				//right block, all greater than or equal to pivot (neutralised), get another
@@ -241,7 +241,7 @@ func selectTopFaA(list []int, top int, blockSize int) int {
 }
 
 func partitionParallel(list []int, left, right int, blockSize int, pivotValue int) int {
-	fmt.Printf("pp, left %v right %v blockSize %v, value %v, list %v\n", left, right, blockSize, pivotValue, list)
+	//# fmt.Printf("pp, left %v right %v blockSize %v, value %v, list %v\n", left, right, blockSize, pivotValue, list)
 
 	//Shared mutable
 	s := NewLeftRightSubLists(list, left, right, blockSize)
@@ -261,9 +261,9 @@ func partitionParallel(list []int, left, right int, blockSize int, pivotValue in
 	i := 0
 	j := 0
 	for leftBlock != nil && rightBlock != nil {
-		fmt.Printf("before neutralise left %v, right %v, i %v, j %v, remaining left %v, right %v, neutralised left %v, right %v, list %v\n", leftBlock, rightBlock, i, j, remainingLeftBlocks, remainingRightBlocks, neutralisedLeftBlocks, neutralisedRightBlocks, list)
+		//# fmt.Printf("before neutralise left %v, right %v, i %v, j %v, remaining left %v, right %v, neutralised left %v, right %v, list %v\n", leftBlock, rightBlock, i, j, remainingLeftBlocks, remainingRightBlocks, neutralisedLeftBlocks, neutralisedRightBlocks, list)
 		leftOrRight, index := neutralise(list, *leftBlock, i, *rightBlock, j, pivotValue)
-		fmt.Printf("after neutralise leftOrRight %v, index %v, list %v\n", leftOrRight, index, list)
+		//# fmt.Printf("after neutralise leftOrRight %v, index %v, list %v\n", leftOrRight, index, list)
 
 		if leftOrRight > 0 {
 			//right block, all greater than or equal to pivot (neutralised), get another
@@ -295,7 +295,7 @@ func partitionParallel(list []int, left, right int, blockSize int, pivotValue in
 		remainingRightBlocks = append(remainingRightBlocks, rightBlock)
 	}
 
-	fmt.Printf("Loop done left %v, right %v, i %v, j %v, remaining left %v, right %v, neutralised left %v, right %v, list %v\n", leftBlock, rightBlock, i, j, remainingLeftBlocks, remainingRightBlocks, neutralisedLeftBlocks, neutralisedRightBlocks, list)
+	//# fmt.Printf("Loop done left %v, right %v, i %v, j %v, remaining left %v, right %v, neutralised left %v, right %v, list %v\n", leftBlock, rightBlock, i, j, remainingLeftBlocks, remainingRightBlocks, neutralisedLeftBlocks, neutralisedRightBlocks, list)
 
 	//Sequential copy of unneutralised blocks into middle
 	sort.Slice(remainingLeftBlocks, func(i, j int) bool {
@@ -486,7 +486,14 @@ func partition(list []int, left int, right, pivotValue int) int {
 	return storeIndex
 }
 
-// left and right must be disjoint
+// neutralise swaps all elements less than than the pivotValue to the far left of the left sublist given
+// NOTE: the left and right sub lists must be disjoint and contain at least one element
+// There are 3 cases for the return value
+// Case 1 - all elements in left and right are strictly less than the pivotValue a return of 0,-1 is given to indicate both sub lists are "neutralised"
+// Case 2 - all elements in the left are strictly less than the pivotValue a return of -1, j is given (left is "neutralised")
+//          where j is the index into the right sub list where the first known element < the pivotValue is
+// Case 3 - all elements in the right are greater than or equal to the pivotValue a return of 1, i is given (right is "neutralised")
+//          where i is the index into the left sub list where the first known element >= the pivotValue is
 func neutralise(list []int, left SubListDefinition, i int, right SubListDefinition, j int, pivotValue int) (leftOrRight int, index int) {
 	leftLength := left.endIndex - left.beginIndex + 1
 	rightLength := right.endIndex - right.beginIndex + 1
